@@ -3,11 +3,12 @@
 
 
 ## 기본 쉘 스크립트 사용법
-
+```console
 bash boolq.sh roberta [bsz]
 bash cola.sh roberta [bsz]
 bash copa.sh roberta [bsz]
 bash wic.sh roberta [bsz]
+```
 
 ## 수정해야될부분
 
