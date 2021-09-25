@@ -1,0 +1,1 @@
+from .wic_classifier import  wic_classifier
