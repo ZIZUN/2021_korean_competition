@@ -6,7 +6,7 @@
 *~
 
 ## my ## 
-old_submission
+old_submission/**
 boolq_high_lr_1.2e-5_bsz_10
 cola_high_lr_1e-5_bsz_16
 copa_high_lr_1e-5_bsz_16
