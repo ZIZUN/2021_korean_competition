@@ -1,6 +1,13 @@
 # 2021_korean_competition
 2021 국립국어원 인공 지능 언어 능력 평가
+## 환경셜정
++ python 3.7 지원하는 거 확인햇음.
 
+```console
+
+pip install -r requirements.txt
+
+```
 
 ## 기본 쉘 스크립트 사용법
 ```console
