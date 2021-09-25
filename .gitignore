@@ -6,11 +6,11 @@
 *~
 
 ## my ## 
-old_submission
-boolq_high_lr_1.2e-5_bsz_10
-cola_high_lr_1e-5_bsz_16
-copa_high_lr_1e-5_bsz_16
-wic_high_lr_1e-5_bsz_16
+old_submission/
+boolq_high_lr_1.2e-5_bsz_10/
+cola_high_lr_1e-5_bsz_16/
+copa_high_lr_1e-5_bsz_16/
+wic_high_lr_1e-5_bsz_16/
 
 # temporary files which can be created if a process still has a handle open of a deleted file
 .fuse_hidden*
