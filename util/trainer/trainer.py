@@ -14,15 +14,29 @@ from sklearn.metrics import matthews_corrcoef, accuracy_score
 logging.basicConfig(filename='./eval.log', level=logging.INFO)
 
 class Trainer:
-    def __init__(self, model,
-                 train_dataloader: DataLoader, test_dataloader: DataLoader = None,
-                 lr: float = 1e-4, betas=(0.9, 0.999), weight_decay: float = 0.01, warmup_steps=1000,
-                 with_cuda: bool = True, cuda_devices=None, log_freq: int = 10, distributed = False, local_rank = 0, accum_iter=1):
+    def __init__(self,
+                 task,
+                 model,
+                 train_dataloader: DataLoader,
+                 test_dataloader: DataLoader = None,
+                 lr: float = 1e-4,
+                 betas=(0.9, 0.999),
+                 weight_decay: float = 0.01,
+                 warmup_steps=1000,
+                 with_cuda: bool = True,
+                 cuda_devices=None,
+                 log_freq: int = 10,
+                 distributed = False,
+                 local_rank = 0,
+                 accum_iter=1,
+                 kl_alpha = 1 # 논문에서는 5
+                 ):
         cuda_condition = torch.cuda.is_available() and with_cuda
         self.device = torch.device("cuda:0" if cuda_condition else "cpu")
 
+        self.task = task
         self.model = model
-
+        self.kl_alpha = kl_alpha
         self.local_rank = local_rank
         self.distributed = distributed
 
@@ -47,7 +61,8 @@ class Trainer:
         elif with_cuda and torch.cuda.device_count() > 1:
             self.model = self.model.to(self.device)
             print("Using %d GPUS for your model" % torch.cuda.device_count())
-            self.model = nn.DataParallel(self.model, device_ids=[0,1,2,3])
+            # self.model = nn.DataParallel(self.model, device_ids=[0,1,2,3])
+            self.model = nn.DataParallel(self.model, device_ids=[0,1,2,3,4,5,6,7])
         else: # if gpu = 1 or not gpu
             self.model = self.model.to(self.device)
 
@@ -90,6 +105,24 @@ class Trainer:
         self.iteration(epoch, self.train_data)
 
     def iteration(self, epoch, data_loader, train=True):
+        
+        def compute_kl_loss(p, q, pad_mask=None):
+            
+            p_loss = F.kl_div(F.log_softmax(p, dim=-1), F.softmax(q, dim=-1), reduction='none')
+            q_loss = F.kl_div(F.log_softmax(q, dim=-1), F.softmax(p, dim=-1), reduction='none')
+            
+            # pad_mask is for seq-level tasks
+            if pad_mask is not None:
+                p_loss.masked_fill_(pad_mask, 0.)
+                q_loss.masked_fill_(pad_mask, 0.)
+
+            # You can choose whether to use function "sum" and "mean" depending on your task
+            p_loss = p_loss.sum()
+            q_loss = q_loss.sum()
+
+            loss = (p_loss + q_loss) / 2
+            return loss
+
         str_code = "train" if train else "test"
 
         # Setting the tqdm progress bar
@@ -109,13 +142,26 @@ class Trainer:
 
             self.optim.zero_grad()
 
-            output = self.model.forward(**data)
+            output_1 = self.model.forward(**data)
+            output_2 = self.model.forward(**data)
 
-            loss, logits = output.loss, output.logits
+            loss_1, logits_1 = output_1.loss, output_1.logits
+            loss_2, logits_2 = output_2.loss, output_2.logits
+            
+            # ce_loss = 0.5 * (cross_entropy_loss(logits, label) + cross_entropy_loss(logits2, label))
+            ce_loss = 0.5 * (loss_1 + loss_2)
+
+            # kl_loss = compute_kl_loss(logits_1, logits_2, pad_mask=data['attention_mask'])
+            kl_loss = compute_kl_loss(logits_1, logits_2)
+
+            loss = ce_loss + self.kl_alpha * kl_loss
+
+
+
 
             # print(output.logits)
 
-            predict = F.softmax(logits, dim=1).argmax(dim=1)
+            predict = F.softmax(logits_1, dim=1).argmax(dim=1)
             # print(predict)
             correct = (predict == data['labels'].long()).sum().item()
 
@@ -138,7 +184,7 @@ class Trainer:
                 post_fix = {
                     "epoch": epoch,
                     "iter": self.now_iteration,
-                    "loss": loss,
+                    "loss": loss.item(),
                     "train_acc": acc
                 }
 
@@ -160,14 +206,17 @@ class Trainer:
             if self.now_iteration % 200 == 0:
                 # eval
                 eval_acc = self.evaluation(epoch, self.test_data, train=False)
-                self.model.train
+                self.model.train()
                 # save
                 output_path = "output/fintuned.model." + str(self.now_iteration) +"_"+str(eval_acc)+ '.fintune'
-
-                # torch.save(self.model.module.state_dict(), output_path) # save state dict -> for wic task
-
-                self.model.module.save_pretrained(output_path) # save config, and, huggingface model
-
+                
+                if self.task == 'wic':
+                    torch.save(self.model.module.state_dict(), output_path) # save state dict -> for wic task
+                elif self.task in ['cola', 'copa', 'boolq']:
+                    self.model.module.save_pretrained(output_path) # save config, and, huggingface model
+                else:
+                    raise NotImplementedError
+                    
                 print("EP:%d Model Saved on:" % epoch, output_path)
 
         print("EP%d_%s, avg_loss=" % (epoch, str_code), avg_loss / len(data_iter))

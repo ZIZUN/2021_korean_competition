@@ -3,12 +3,12 @@ from transformers import AutoTokenizer
 from transformers import RobertaForSequenceClassification, RobertaConfig, RobertaForMultipleChoice
 import torch.nn.functional as F
 import torch
+import json
 
-
-def boolq_evaluation(): # index 1-704
+def boolq_evaluation(best_model_path): # index 1-704
     model_config = RobertaConfig.from_pretrained(pretrained_model_name_or_path="output/boolq_high_lr_1.2e-5_bsz_10/86_4/",  num_labels=2)
-    model = RobertaForSequenceClassification.from_pretrained("output/boolq_high_lr_1.2e-5_bsz_10/86_4/pytorch_model.bin"
-                                                             , config=model_config)
+    # best_model_path = "output/boolq_high_lr_1.2e-5_bsz_10/86_4/pytorch_model.bin"
+    model = RobertaForSequenceClassification.from_pretrained(best_model_path, config=model_config)
 
 
     tokenizer = AutoTokenizer.from_pretrained("klue/roberta-large")
@@ -67,12 +67,11 @@ def boolq_evaluation(): # index 1-704
     return predict_list
 
 
-
-def cola_evaluation(): # index 0-1059
+def cola_evaluation(best_model_path): # index 0-1059
     model_config = RobertaConfig.from_pretrained(
         pretrained_model_name_or_path="output/cola_high_lr_1e-5_bsz_16/74_4/", num_labels=2)
-    model = RobertaForSequenceClassification.from_pretrained("output/cola_high_lr_1e-5_bsz_16/74_4/pytorch_model.bin"
-                                                             , config=model_config)
+    # best_model_path = "output/cola_high_lr_1e-5_bsz_16/74_4/pytorch_model.bin"
+    model = RobertaForSequenceClassification.from_pretrained(best_model_path, config=model_config)
 
     tokenizer = AutoTokenizer.from_pretrained("klue/roberta-large")
     cola_dataset = pd.read_csv('data/cola/NIKL_CoLA_test.tsv', sep='\t')
@@ -127,11 +126,11 @@ def cola_evaluation(): # index 0-1059
     return predict_list
 
 
-def copa_evaluation(): # index 1-500
+def copa_evaluation(best_model_path): # index 1-500
     model_config = RobertaConfig.from_pretrained(
         pretrained_model_name_or_path="output/copa_high_lr_1e-5_bsz_16/91_2/", num_labels=2)
-    model = RobertaForMultipleChoice.from_pretrained("output/copa_high_lr_1e-5_bsz_16/91_2/pytorch_model.bin"
-                                                             , config=model_config)
+    # best_model_path = "output/copa_high_lr_1e-5_bsz_16/91_2/pytorch_model.bin"
+    model = RobertaForMultipleChoice.from_pretrained(best_model_path, config=model_config)
 
     tokenizer = AutoTokenizer.from_pretrained("klue/roberta-large")
     copa_dataset = pd.read_csv('data/copa/SKT_COPA_Test.tsv', sep='\t')
@@ -194,17 +193,18 @@ def copa_evaluation(): # index 1-500
     return predict_list
 
 
-def wic_evaluation(): # index 1-1246
+def wic_evaluation(best_model_path): # index 1-1246
     from util.model import wic_classifier
 
     tokenizer = AutoTokenizer.from_pretrained("klue/roberta-large")
 
     model = wic_classifier(len(tokenizer)+2)
-    model.load_state_dict(torch.load("output/wic_high_lr_1e-5_bsz_16/90_39"))
+    # best_model_path = 'output/fintuned.model.2000_91.42367066895368.fintune'
+    model.load_state_dict(torch.load(best_model_path))
 
     seq_len = 400
 
-    wic_dataset = pd.read_csv('data/wic/NIKL_SKT_WiC_Train.tsv', sep='\t')#.dropna(axis=0)
+    wic_dataset = pd.read_csv('data/wic/NIKL_SKT_WiC_Test.tsv', sep='\t')#.dropna(axis=0)
     tokenizer.add_special_tokens({'additional_special_tokens': ['<t>', '</t>']})
 
     padding = tokenizer.pad_token_id
@@ -273,17 +273,37 @@ def wic_evaluation(): # index 1-1246
     return predict_list
 
 
+def result_update(task: str):
+    with open('./result.json', 'r', encoding='utf-8') as f:
+        result = json.load(f)
+    if task == 'boolq':
+        task_result = boolq_evaluation()
+    elif task == 'cola':
+        task_result = cola_evaluation()
+    elif task == 'copa':
+        task_result = copa_evaluation()
+    elif task == 'wic':
+        task_result = wic_evaluation()
+    else:
+        raise NotImplementedError
+    result[task] = task_result
+
+    with open('./result.json', 'w', encoding='utf-8') as make_file:
+        json.dump(result, make_file, indent="\t")
 
 
 
 
-# boolq = boolq_evaluation()
-# cola = cola_evaluation()
-# copa = copa_evaluation()
-wic = wic_evaluation()
+if __name__ == '__main__':
+    # boolq = boolq_evaluation()
+    # cola = cola_evaluation()
+    # copa = copa_evaluation()
+    # wic = wic_evaluation()
 
-# result = {"boolq": boolq, "copa": copa, "wic": wic, "cola": cola}
-# import json
-#
-# with open('./result.json', 'w', encoding='utf-8') as make_file:
-#     json.dump(result, make_file, indent="\t")
+    # result = {"boolq": boolq, "copa": copa, "wic": wic, "cola": cola}
+    # task = 'boolq'
+    # task = 'cola'
+    # task = 'copa'
+    task = 'wic'
+    best_model_path = 'output/fintuned.model.2000_91.42367066895368.fintune'
+    result_update(task, best_model_path)

@@ -85,7 +85,7 @@ elif args.model == 'roberta':
     model = RobertaForSequenceClassification.from_pretrained("klue/roberta-large", config=model_config)
 
 print("Creating Trainer")
-trainer = Trainer(model, train_dataloader=train_data_loader, test_dataloader=test_data_loader,
+trainer = Trainer('boolq', model, train_dataloader=train_data_loader, test_dataloader=test_data_loader,
                       lr=args.lr, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay,
                       with_cuda=args.with_cuda, cuda_devices=args.cuda_devices, log_freq=args.log_freq,
                   distributed = args.ddp, local_rank = args.local_rank, accum_iter= args.accumulate)
