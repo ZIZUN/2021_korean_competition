@@ -291,19 +291,7 @@ def result_update(task: str):
     with open('./result.json', 'w', encoding='utf-8') as make_file:
         json.dump(result, make_file, indent="\t")
 
-
-
-
 if __name__ == '__main__':
-    # boolq = boolq_evaluation()
-    # cola = cola_evaluation()
-    # copa = copa_evaluation()
-    # wic = wic_evaluation()
-
-    # result = {"boolq": boolq, "copa": copa, "wic": wic, "cola": cola}
-    # task = 'boolq'
-    # task = 'cola'
-    # task = 'copa'
     task = 'wic'
     best_model_path = 'output/fintuned.model.2000_91.42367066895368.fintune'
     result_update(task, best_model_path)

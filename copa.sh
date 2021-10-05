@@ -13,8 +13,8 @@ else
     cmd="${cmd}python"
 fi
 
-cmd="${cmd} finetune_copa.py -c data/copa/SKT_COPA_Train.tsv -t data/copa/SKT_COPA_Dev.tsv --model=${model}\
-            -o output/gpt2.model --batch_size ${bsz}  --epochs 50 --lr 1.2e-5 --seed 82
+cmd="${cmd} finetune_copa.py -c data/copa/Train_aug.tsv -t data/copa/SKT_COPA_Dev.tsv --model=${model}\
+            -o output/gpt2.model --batch_size ${bsz}  --epochs 50 --lr 1.1e-5 --seed 82
             --input_seq_len 80 --log_freq 1  --accumulate 1"
 
 if [ "${ddp}" = "ddp" ]
