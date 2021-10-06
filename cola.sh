@@ -14,7 +14,7 @@ else
 fi
 
 cmd="${cmd} finetune_cola.py -c data/cola/NIKL_CoLA_train.tsv -t data/cola/NIKL_CoLA_dev.tsv --model=${model}\
-            -o output/gpt2.model --batch_size ${bsz}  --epochs 50 --lr 1e-5 --seed 82
+            -o output/gpt2.model --batch_size ${bsz}  --epochs 50 --lr 1.1e-5 --seed 1012
             --input_seq_len 40 --log_freq 1  --accumulate 1"
 
 if [ "${ddp}" = "ddp" ]

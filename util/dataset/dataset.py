@@ -73,10 +73,11 @@ class LoadDataset_boolq(Dataset):
 
 
 class LoadDataset_cola(Dataset):
-    def __init__(self, corpus_path, seq_len, model):
+    def __init__(self, corpus_path, seq_len, model, train):
         self.seq_len = seq_len
 
         self.corpus_path = corpus_path
+        self.train = train
 
         if model == "base":
             self.tokenizer = AutoTokenizer.from_pretrained("skt/kogpt2-base-v2",
@@ -84,12 +85,23 @@ class LoadDataset_cola(Dataset):
                                                                    pad_token='<pad>', mask_token='<mask>')
         elif model == "trinity":
             self.tokenizer = AutoTokenizer.from_pretrained("skt/ko-gpt-trinity-1.2B-v0.5")
+            self.tokenizer = AutoTokenizer.from_pretrained("klue/roberta-large")
+            self.start = self.tokenizer.bos_token_id
+            self.sep = self.tokenizer.eos_token_id
         elif model == "roberta":
             self.tokenizer = AutoTokenizer.from_pretrained("klue/roberta-large")
+            self.start = self.tokenizer.bos_token_id
+            self.sep = self.tokenizer.eos_token_id
+        elif model == "kcbert":
+            self.tokenizer = AutoTokenizer.from_pretrained("beomi/kcbert-large")
+            self.start = self.tokenizer.cls_token_id
+            self.sep = self.tokenizer.sep_token_id
+        elif model == 'electra':
+            self.tokenizer = AutoTokenizer.from_pretrained("monologg/koelectra-base-v3-discriminator")
+            self.start = self.tokenizer.cls_token_id
+            self.sep = self.tokenizer.sep_token_id
 
         self.padding = self.tokenizer.pad_token_id
-        self.start = self.tokenizer.bos_token_id
-        self.sep = self.tokenizer.eos_token_id
 
         self.cola_dataset = pd.read_csv(corpus_path, sep='\t')
 
@@ -101,15 +113,13 @@ class LoadDataset_cola(Dataset):
         for i in range(self.dataset_len):
             row = self.cola_dataset.iloc[i, 1:4].values
 
+            if train == "train" and not(row[1] == '*' or pd.isna(row[1])):
+                continue
+
             context = row[2]
             label = row[0]
 
             text = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(context))
-
-            # if len(text) > max:
-            #     max = len(text)
-            #     print(max)
-
 
             if len(text) <= self.seq_len - 2:
                 text = [self.start] + text + [self.sep]
@@ -127,10 +137,12 @@ class LoadDataset_cola(Dataset):
             model_input = text
             model_label = int(label)
 
+            # print(model_input)
+
             self.dataset.append({"input_ids": model_input, 'attention_mask': attention_mask, "labels": model_label})
 
     def __len__(self):
-        return self.dataset_len
+        return len(self.dataset)
 
     def __getitem__(self, item):
         output = self.dataset[item]
@@ -160,21 +172,35 @@ class LoadDataset_copa(Dataset):
 
         self.copa_dataset = pd.read_csv(corpus_path, sep='\t').dropna(axis=0)
 
-        self.dataset_len = len(self.copa_dataset)
-
         self.dataset = []
-        for i in range(self.dataset_len):
+
+        for i in range(len(self.copa_dataset)):
             row = self.copa_dataset.iloc[i, 1:].values
 
             premise, input, output_1, output_2, label = \
                 row[1], row[0], row[2], row[3], row[4]
 
-            sequence_1 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(premise)) + [self.sep] + \
-                         self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(input)) \
-                         + [self.sep] + self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(output_1))
-            sequence_2 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(premise)) + [self.sep] + \
-                         self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(input)) \
-                         + [self.sep] + self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(output_2))
+
+            # Full-text-forat   (https://arxiv.org/pdf/2004.14074.pdf)
+            if premise == '원인':
+                sequence_1 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(input+" 왜냐하면 "+ output_1))
+                sequence_2 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(input + " 왜냐하면 " + output_2))
+            else:
+                sequence_1 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(input+" 그래서 "+ output_1))
+                sequence_2 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(input + " 그래서 " + output_2))
+
+
+            # Separated-sentence-format   (https://arxiv.org/pdf/2004.14074.pdf)
+            # if premise == '원인':
+            #     sequence_1 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(output_1)) \
+            #                  + [self.sep] + self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(input))
+            #     sequence_2 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(output_2)) \
+            #                  + [self.sep] + self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(input))
+            # else:
+            #     sequence_1 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(input)) \
+            #                  + [self.sep] + self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(output_1))
+            #     sequence_2 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(input)) \
+            #                  + [self.sep] + self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(output_2))
 
             sequence_1, attention_mask_1 = self.make_sequence(sequence_1)
             sequence_2, attention_mask_2 = self.make_sequence(sequence_2)
@@ -183,7 +209,7 @@ class LoadDataset_copa(Dataset):
                                  'attention_mask': [attention_mask_1, attention_mask_2], "labels": int(label) - 1})
 
     def __len__(self):
-        return self.dataset_len
+        return len(self.dataset)
 
     def __getitem__(self, item):
         output = self.dataset[item]

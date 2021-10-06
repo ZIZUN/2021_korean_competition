@@ -2,7 +2,7 @@ import argparse
 
 from torch.utils.data import DataLoader
 from transformers import GPT2ForSequenceClassification,GPT2Config, RobertaForSequenceClassification, RobertaConfig, \
-    BertForSequenceClassification, BertConfig
+    BertForSequenceClassification, BertConfig, ElectraForSequenceClassification, ElectraConfig
 from util.trainer import Trainer
 from util.dataset import LoadDataset_cola
 
@@ -51,10 +51,10 @@ torch.cuda.manual_seed_all(args.seed)
 
 
 print("Loading Train Dataset", args.train_dataset)
-train_dataset = LoadDataset_cola(args.train_dataset, seq_len=args.input_seq_len, model=args.model)
+train_dataset = LoadDataset_cola(args.train_dataset, seq_len=args.input_seq_len, model=args.model, train='train')
 
 print("Loading Test Dataset", args.test_dataset)
-test_dataset = LoadDataset_cola(args.test_dataset, seq_len=args.input_seq_len, model=args.model) \
+test_dataset = LoadDataset_cola(args.test_dataset, seq_len=args.input_seq_len, model=args.model, train='test') \
     if args.test_dataset is not None else None
 
 if args.ddp:
@@ -89,12 +89,17 @@ elif args.model == 'roberta':
     model_config = RobertaConfig.from_pretrained(pretrained_model_name_or_path="klue/roberta-large",
                                               num_labels=2)
     model = RobertaForSequenceClassification.from_pretrained("klue/roberta-large", config=model_config) # klue/roberta-large
+elif args.model == 'electra':
+    model_config = ElectraConfig.from_pretrained(pretrained_model_name_or_path="monologg/koelectra-base-v3-discriminator",
+                                                 num_labels=2)
+    model = ElectraForSequenceClassification.from_pretrained("monologg/koelectra-base-v3-discriminator", config=model_config)
+
 
 print("Creating Trainer")
-trainer = Trainer(task='cola', model=model, train_dataloader=train_data_loader, test_dataloader=test_data_loader,
+trainer = Trainer(model=model, train_dataloader=train_data_loader, test_dataloader=test_data_loader,
                       lr=args.lr, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay,
                       with_cuda=args.with_cuda, cuda_devices=args.cuda_devices, log_freq=args.log_freq,
-                  distributed = args.ddp, local_rank = args.local_rank, accum_iter= args.accumulate)
+                  distributed = args.ddp, local_rank = args.local_rank, accum_iter= args.accumulate, task='cola')
 
 print("Training Start")
 for epoch in range(args.epochs):
