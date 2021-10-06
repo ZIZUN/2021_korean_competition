@@ -51,7 +51,7 @@ torch.manual_seed(args.seed)
 torch.cuda.manual_seed_all(args.seed)
 
 print("Loading Train Dataset", args.train_dataset)
-train_dataset = LoadDataset_wic(args.train_dataset, seq_len=args.input_seq_len, model=args.model)
+train_dataset = LoadDataset_wic(args.train_dataset, seq_len=args.input_seq_len, model=args.model, augment=True)
 
 print("Loading Test Dataset", args.test_dataset)
 test_dataset = LoadDataset_wic(args.test_dataset, seq_len=args.input_seq_len, model=args.model) \
