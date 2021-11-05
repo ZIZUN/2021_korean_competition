@@ -63,7 +63,7 @@ if args.ddp:
     train_data_loader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.batch_size, num_workers=args.num_workers)
 else:
     print("Creating Dataloader")
-    train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=args.num_workers)
+    train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
 
 if args.ddp:
     print("Creating Dataloader")
@@ -84,13 +84,17 @@ elif args.model =='trinity':
     # model_config = GPT2Config.from_pretrained(pretrained_model_name_or_path="skt/ko-gpt-trinity-1.2B-v0.5",    num_labels=2)
     # model = GPT2ForSequenceClassification.from_pretrained("skt/ko-gpt-trinity-1.2B-v0.5", config=model_config)
 elif args.model == 'roberta':
-    model = wic_classifier(train_dataset.get_tokenizer_len())
+    model = wic_classifier(resize_token_embd_len=train_dataset.get_tokenizer_len(), model_name='roberta')
+elif args.model == 'electra':
+    model = wic_classifier(resize_token_embd_len=train_dataset.get_tokenizer_len(), model_name='electra')
+elif args.model == 'electra_tunib':
+    model = wic_classifier(resize_token_embd_len=train_dataset.get_tokenizer_len(), model_name='electra_tunib')
 
 print("Creating Trainer")
 trainer = Trainer(task='wic', model=model, train_dataloader=train_data_loader, test_dataloader=test_data_loader,
                       lr=args.lr, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay,
                       with_cuda=args.with_cuda, cuda_devices=args.cuda_devices, log_freq=args.log_freq,
-                  distributed = args.ddp, local_rank = args.local_rank, accum_iter= args.accumulate)
+                  distributed = args.ddp, local_rank = args.local_rank, accum_iter= args.accumulate, seed= args.seed, model_name=args.model)
 
 print("Training Start")
 for epoch in range(args.epochs):

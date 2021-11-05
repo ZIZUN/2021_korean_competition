@@ -13,15 +13,21 @@ from transformers.optimization import get_cosine_schedule_with_warmup
 from sklearn.metrics import matthews_corrcoef, accuracy_score
 logging.basicConfig(filename='./eval.log', level=logging.INFO)
 
+from ranger import Ranger  # this is from ranger.py
+# from ranger import RangerVA  # this is from ranger913A.py
+# from ranger import RangerQH  # this is from rangerqh.py
+
 class Trainer:
     def __init__(self, task, model,
                  train_dataloader: DataLoader, test_dataloader: DataLoader = None,
                  lr: float = 1e-4, betas=(0.9, 0.999), weight_decay: float = 0.01, warmup_steps=1000,
-                 with_cuda: bool = True, cuda_devices=None, log_freq: int = 10, distributed = False, local_rank = 0, accum_iter=1):
+                 with_cuda: bool = True, cuda_devices=None, log_freq: int = 10, distributed = False,
+                 local_rank = 0, accum_iter=1, seed = None, model_name=None):
         cuda_condition = torch.cuda.is_available() and with_cuda
         self.device = torch.device("cuda:0" if cuda_condition else "cpu")
-
+        self.seed = seed
         self.model = model
+        self.model_name = model_name
         self.task = task
         self.local_rank = local_rank
         self.distributed = distributed
@@ -33,9 +39,11 @@ class Trainer:
         self.avgloss = 0
 
         self.now_iteration = 0
+        self.max_acc = 0
 
         print("Total Parameters:", sum([p.nelement() for p in self.model.parameters()]))
 
+        self.device = torch.device("cuda:3" if cuda_condition else "cpu")
         # DDP
         if distributed:
             self.model.cuda()
@@ -47,7 +55,7 @@ class Trainer:
         elif with_cuda and torch.cuda.device_count() > 1:
             self.model = self.model.to(self.device)
             print("Using %d GPUS for your model" % torch.cuda.device_count())
-            self.model = nn.DataParallel(self.model, device_ids=[0,1,2,3])
+            self.model = nn.DataParallel(self.model, device_ids=[3])
         else: # if gpu = 1 or not gpu
             self.model = self.model.to(self.device)
 
@@ -71,12 +79,14 @@ class Trainer:
             0.0
         }]
 
+        # Each of the Ranger, RangerVA, RangerQH have different parameters.
+        # self.optim = Ranger(optimizer_grouped_parameters, lr=lr)
 
         self.optim = AdamW(optimizer_grouped_parameters, lr=lr, betas=betas)
         self.scheduler = get_cosine_schedule_with_warmup(
             self.optim,
             num_warmup_steps=1000,
-            num_training_steps=5000)
+            num_training_steps=8000)
 
 
 
@@ -99,6 +109,7 @@ class Trainer:
                               bar_format="{l_bar}{r_bar}")
 
         avg_loss = 0.0
+
 
         for i, data in data_iter:
             self.model.train()
@@ -157,17 +168,23 @@ class Trainer:
                     data_iter.write(str(post_fix))
 
 
-            if self.now_iteration % 50 == 0:
+            #if self.now_iteration % 50 == 0:
+            if self.now_iteration >= 900 and self.now_iteration % 10 == 0:
                 # eval
                 eval_acc = self.evaluation(epoch, self.test_data, train=False)
                 self.model.train
                 # save
-                output_path = "output/fintuned.model." + str(self.now_iteration) +"_"+str(eval_acc)+ '.fintune'
+                output_path = "output/"+ self.task +'/'+ str(self.now_iteration) +"_"+str(eval_acc)[:5] + '_' + str(self.seed) \
+                              + "_" + self.model_name
 
                 if self.task == 'wic':
-                    torch.save(self.model.module.state_dict(), output_path) # save state dict -> for wic task
+                    if eval_acc > self.max_acc:
+                        self.max_acc = eval_acc
+                        torch.save(self.model.module.state_dict(), output_path) # save state dict -> for wic task
                 elif self.task in ['cola', 'copa', 'boolq']:
-                    self.model.module.save_pretrained(output_path) # save config, and, huggingface model
+                    if eval_acc > self.max_acc:
+                        self.max_acc = eval_acc
+                        self.model.module.save_pretrained(output_path) # save config, and, huggingface model
                 else:
                     raise NotImplementedError
                 print("EP:%d Model Saved on:" % epoch, output_path)

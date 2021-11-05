@@ -6,7 +6,7 @@ import pandas as pd
 from transformers import AutoTokenizer
 
 class LoadDataset_boolq(Dataset):
-    def __init__(self, corpus_path, seq_len, model):
+    def __init__(self, corpus_path, seq_len, model, train='train'):
         self.seq_len = seq_len
 
         self.corpus_path = corpus_path
@@ -17,14 +17,28 @@ class LoadDataset_boolq(Dataset):
                                                                    pad_token='<pad>', mask_token='<mask>')
         elif model == "trinity":
             self.tokenizer = AutoTokenizer.from_pretrained("skt/ko-gpt-trinity-1.2B-v0.5")
+            self.start = self.tokenizer.bos_token_id
+            self.sep = self.tokenizer.eos_token_id
         elif model == "roberta":
             self.tokenizer = AutoTokenizer.from_pretrained("klue/roberta-large")
+            self.start = self.tokenizer.bos_token_id
+            self.sep = self.tokenizer.eos_token_id
+        elif model == 'electra':
+            self.tokenizer = AutoTokenizer.from_pretrained("monologg/koelectra-base-v3-discriminator")
+            self.start = self.tokenizer.cls_token_id
+            self.sep = self.tokenizer.sep_token_id
+        elif model == 'electra_tunib':
+            self.tokenizer = AutoTokenizer.from_pretrained("tunib/electra-ko-base")
+            self.start = self.tokenizer.cls_token_id
+            self.sep = self.tokenizer.sep_token_id
 
         self.padding = self.tokenizer.pad_token_id
-        self.start = self.tokenizer.bos_token_id
-        self.sep = self.tokenizer.eos_token_id
 
-        self.boolq_dataset = pd.read_csv(corpus_path, sep='\t').dropna(axis=0)
+
+        if train=='train':
+            self.boolq_dataset = pd.read_csv(corpus_path, sep='\t').dropna(axis=0)
+        else:
+            self.boolq_dataset = pd.read_csv(corpus_path, sep='\t')
 
         self.dataset_len = len(self.boolq_dataset)
 
@@ -32,11 +46,12 @@ class LoadDataset_boolq(Dataset):
 
         # max = 0
         for i in range(self.dataset_len):
-            row = self.boolq_dataset.iloc[i, 1:4].values
+            row = self.boolq_dataset.iloc[i, 1:].values
 
             context = row[0]
             question = row[1]
-            label = row[2]
+            if train=='train':
+                label = row[2]
 
             context = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(context))
             question = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(question))
@@ -60,9 +75,13 @@ class LoadDataset_boolq(Dataset):
                 attention_mask = len(text) * [1]
 
             model_input = text
-            model_label = int(label)
 
-            self.dataset.append({"input_ids": model_input, 'attention_mask': attention_mask, "labels": model_label})
+            if train == 'train':
+                model_label = int(label)
+                self.dataset.append({"input_ids": model_input, 'attention_mask': attention_mask, "labels": model_label})
+            else:
+                self.dataset.append({"input_ids": model_input, 'attention_mask': attention_mask})
+
 
     def __len__(self):
         return self.dataset_len
@@ -100,6 +119,16 @@ class LoadDataset_cola(Dataset):
             self.tokenizer = AutoTokenizer.from_pretrained("monologg/koelectra-base-v3-discriminator")
             self.start = self.tokenizer.cls_token_id
             self.sep = self.tokenizer.sep_token_id
+        elif model == 'electra_tunib':
+            self.tokenizer = AutoTokenizer.from_pretrained("tunib/electra-ko-base")
+            self.start = self.tokenizer.cls_token_id
+            self.sep = self.tokenizer.sep_token_id
+        elif model == 'electra_kor':
+            self.tokenizer = AutoTokenizer.from_pretrained("kykim/electra-kor-base")
+            self.start = self.tokenizer.cls_token_id
+            self.sep = self.tokenizer.sep_token_id
+
+
 
         self.padding = self.tokenizer.pad_token_id
 
@@ -111,13 +140,19 @@ class LoadDataset_cola(Dataset):
 
         # max = 0
         for i in range(self.dataset_len):
-            row = self.cola_dataset.iloc[i, 1:4].values
+            if train != "test":
+                row = self.cola_dataset.iloc[i, 1:4].values
 
-            if train == "train" and not(row[1] == '*' or pd.isna(row[1])):
-                continue
+                if train == "train" and not (row[1] == '*' or pd.isna(row[1])):   #  exclude ?*, ??, # and others (source annotation)
+                    continue
+                # if row[1] == '?' or row[1] == '#' or row[1] == '(?)' or row[1] == '??':
+                #     continue
 
-            context = row[2]
-            label = row[0]
+                context = row[2]
+                label = row[0]
+            else:
+                row = self.cola_dataset.iloc[i, :].values
+                context = row[1]
 
             text = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(context))
 
@@ -135,11 +170,14 @@ class LoadDataset_cola(Dataset):
                 attention_mask = len(text) * [1]
 
             model_input = text
-            model_label = int(label)
+
 
             # print(model_input)
-
-            self.dataset.append({"input_ids": model_input, 'attention_mask': attention_mask, "labels": model_label})
+            if train != "test":
+                model_label = int(label)
+                self.dataset.append({"input_ids": model_input, 'attention_mask': attention_mask, "labels": model_label})
+            else:
+                self.dataset.append({"input_ids": model_input, 'attention_mask': attention_mask})
 
     def __len__(self):
         return len(self.dataset)
@@ -152,8 +190,9 @@ class LoadDataset_cola(Dataset):
 
 
 class LoadDataset_copa(Dataset):
-    def __init__(self, corpus_path, seq_len, model):
+    def __init__(self, corpus_path, seq_len, model, train='train'):
         self.seq_len = seq_len
+
 
         self.corpus_path = corpus_path
 
@@ -165,20 +204,39 @@ class LoadDataset_copa(Dataset):
             self.tokenizer = AutoTokenizer.from_pretrained("skt/ko-gpt-trinity-1.2B-v0.5")
         elif model == "roberta":
             self.tokenizer = AutoTokenizer.from_pretrained("klue/roberta-large")
+            self.start = self.tokenizer.bos_token_id
+            self.sep = self.tokenizer.eos_token_id
+        elif model == 'electra':
+            self.tokenizer = AutoTokenizer.from_pretrained("monologg/koelectra-base-v3-discriminator")
+            self.start = self.tokenizer.cls_token_id
+            self.sep = self.tokenizer.sep_token_id
+        elif model == 'electra_tunib':
+            self.tokenizer = AutoTokenizer.from_pretrained("tunib/electra-ko-base")
+            self.start = self.tokenizer.cls_token_id
+            self.sep = self.tokenizer.sep_token_id
 
         self.padding = self.tokenizer.pad_token_id
-        self.start = self.tokenizer.bos_token_id
-        self.sep = self.tokenizer.eos_token_id
 
-        self.copa_dataset = pd.read_csv(corpus_path, sep='\t').dropna(axis=0)
+        if train !='test':
+            self.copa_dataset = pd.read_csv(corpus_path, sep='\t').dropna(axis=0)
+        else:
+            self.copa_dataset = pd.read_csv(corpus_path, sep='\t')
+
 
         self.dataset = []
+
+        maxlen = 0
 
         for i in range(len(self.copa_dataset)):
             row = self.copa_dataset.iloc[i, 1:].values
 
-            premise, input, output_1, output_2, label = \
-                row[1], row[0], row[2], row[3], row[4]
+            if train != "test":
+                premise, input, output_1, output_2, label = \
+                    row[1], row[0], row[2], row[3], row[4]
+            else:
+                premise, input, output_1, output_2 = \
+                    row[1], row[0], row[2], row[3]
+
 
 
             # Full-text-forat   (https://arxiv.org/pdf/2004.14074.pdf)
@@ -188,7 +246,6 @@ class LoadDataset_copa(Dataset):
             else:
                 sequence_1 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(input+" 그래서 "+ output_1))
                 sequence_2 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(input + " 그래서 " + output_2))
-
 
             # Separated-sentence-format   (https://arxiv.org/pdf/2004.14074.pdf)
             # if premise == '원인':
@@ -205,8 +262,15 @@ class LoadDataset_copa(Dataset):
             sequence_1, attention_mask_1 = self.make_sequence(sequence_1)
             sequence_2, attention_mask_2 = self.make_sequence(sequence_2)
 
-            self.dataset.append({"input_ids": [sequence_1, sequence_2],
+
+
+
+            if train != 'test':
+                self.dataset.append({"input_ids": [sequence_1, sequence_2],
                                  'attention_mask': [attention_mask_1, attention_mask_2], "labels": int(label) - 1})
+            else:
+                self.dataset.append({"input_ids": [sequence_1, sequence_2],
+                                     'attention_mask': [attention_mask_1, attention_mask_2]})
 
     def __len__(self):
         return len(self.dataset)
@@ -232,7 +296,7 @@ class LoadDataset_copa(Dataset):
 
 
 class LoadDataset_wic(Dataset):
-    def __init__(self, corpus_path, seq_len, model, augment=False):
+    def __init__(self, corpus_path, seq_len, model, augment=False, train='train'):
         self.seq_len = seq_len
 
         self.corpus_path = corpus_path
@@ -245,14 +309,26 @@ class LoadDataset_wic(Dataset):
             self.tokenizer = AutoTokenizer.from_pretrained("skt/ko-gpt-trinity-1.2B-v0.5")
         elif model == "roberta":
             self.tokenizer = AutoTokenizer.from_pretrained("klue/roberta-large")
+            self.start = self.tokenizer.bos_token_id
+            self.sep = self.tokenizer.eos_token_id
+        elif model == 'electra':
+            self.tokenizer = AutoTokenizer.from_pretrained("monologg/koelectra-base-v3-discriminator")
+            self.start = self.tokenizer.cls_token_id
+            self.sep = self.tokenizer.sep_token_id
+        elif model == 'electra_tunib':
+            self.tokenizer = AutoTokenizer.from_pretrained("tunib/electra-ko-base")
+            self.start = self.tokenizer.cls_token_id
+            self.sep = self.tokenizer.sep_token_id
 
         self.tokenizer.add_special_tokens({'additional_special_tokens': ['<t>', '</t>']})
 
         self.padding = self.tokenizer.pad_token_id
-        self.start = self.tokenizer.bos_token_id
-        self.sep = self.tokenizer.eos_token_id
 
-        self.boolq_dataset = pd.read_csv(corpus_path, sep='\t').dropna(axis=0)
+
+        if train=='train':
+            self.boolq_dataset = pd.read_csv(corpus_path, sep='\t').dropna(axis=0)
+        else:
+            self.boolq_dataset = pd.read_csv(corpus_path, sep='\t')
 
         self.dataset_len = len(self.boolq_dataset)
 
@@ -309,8 +385,13 @@ class LoadDataset_wic(Dataset):
 
                 span_1, span_2 = [span_front[0] + 1, span_end[0]], [span_front[1] + 1, span_end[1]]
 
-                self.dataset.append({"input_ids": text, 'attention_mask': attention_mask, "labels": int(label),
+                if train=='train':
+                    self.dataset.append({"input_ids": text, 'attention_mask': attention_mask, "labels": int(label),
                                     "span_1": span_1, "span_2": span_2})
+                else:
+                    self.dataset.append({"input_ids": text, 'attention_mask': attention_mask,
+                                         "span_1": span_1, "span_2": span_2})
+
 
     def __len__(self):
         # return self.dataset_len

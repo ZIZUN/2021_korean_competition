@@ -1,7 +1,8 @@
 import argparse
 
 from torch.utils.data import DataLoader
-from transformers import GPT2ForSequenceClassification,GPT2Config, RobertaForSequenceClassification, RobertaConfig
+from transformers import GPT2ForSequenceClassification,GPT2Config, RobertaForSequenceClassification, RobertaConfig, \
+    BertForSequenceClassification, BertConfig, ElectraForSequenceClassification, ElectraConfig
 from util.trainer import Trainer
 from util.dataset import LoadDataset_boolq
 
@@ -61,7 +62,7 @@ if args.ddp:
     train_data_loader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.batch_size, num_workers=args.num_workers)
 else:
     print("Creating Dataloader")
-    train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=args.num_workers)
+    train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
 
 if args.ddp:
     print("Creating Dataloader")
@@ -83,12 +84,20 @@ elif args.model == 'roberta':
     model_config = RobertaConfig.from_pretrained(pretrained_model_name_or_path="klue/roberta-large",
                                               num_labels=2)
     model = RobertaForSequenceClassification.from_pretrained("klue/roberta-large", config=model_config)
+elif args.model == 'electra':
+    model_config = ElectraConfig.from_pretrained(pretrained_model_name_or_path="monologg/koelectra-base-v3-discriminator",
+                                                 num_labels=2)
+    model = ElectraForSequenceClassification.from_pretrained("monologg/koelectra-base-v3-discriminator", config=model_config)
+elif args.model == 'electra_tunib':
+    model_config = ElectraConfig.from_pretrained(pretrained_model_name_or_path="tunib/electra-ko-base",
+                                                 num_labels=2)
+    model = ElectraForSequenceClassification.from_pretrained("tunib/electra-ko-base", config=model_config)
 
 print("Creating Trainer")
 trainer = Trainer(task='boolq', model=model, train_dataloader=train_data_loader, test_dataloader=test_data_loader,
                       lr=args.lr, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay,
                       with_cuda=args.with_cuda, cuda_devices=args.cuda_devices, log_freq=args.log_freq,
-                  distributed = args.ddp, local_rank = args.local_rank, accum_iter= args.accumulate)
+                  distributed = args.ddp, local_rank = args.local_rank, accum_iter= args.accumulate, seed= args.seed, model_name=args.model)
 
 print("Training Start")
 for epoch in range(args.epochs):

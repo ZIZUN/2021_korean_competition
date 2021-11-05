@@ -29,7 +29,7 @@ parser.add_argument("-w", "--num_workers", type=int, default=5, help="dataloader
 
 parser.add_argument("--with_cuda", type=bool, default=True, help="training with CUDA: true, or false")
 parser.add_argument("--log_freq", type=int, default=1, help="printing loss every n iter: setting n")
-parser.add_argument("--cuda_devices", type=int, nargs='+', default=None, help="CUDA device ids")
+parser.add_argument("--cuda_devices", type=int, nargs='+', default=[0,1,2,3], help="CUDA device ids")
 parser.add_argument("--on_memory", type=bool, default=True, help="Loading on memory: true or false")
 
 parser.add_argument("--lr", type=float, default=1e-4, help="learning rate of adam")
@@ -54,7 +54,7 @@ print("Loading Train Dataset", args.train_dataset)
 train_dataset = LoadDataset_cola(args.train_dataset, seq_len=args.input_seq_len, model=args.model, train='train')
 
 print("Loading Test Dataset", args.test_dataset)
-test_dataset = LoadDataset_cola(args.test_dataset, seq_len=args.input_seq_len, model=args.model, train='test') \
+test_dataset = LoadDataset_cola(args.test_dataset, seq_len=args.input_seq_len, model=args.model, train='dev') \
     if args.test_dataset is not None else None
 
 if args.ddp:
@@ -63,7 +63,7 @@ if args.ddp:
     train_data_loader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.batch_size, num_workers=args.num_workers)
 else:
     print("Creating Dataloader")
-    train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=args.num_workers)
+    train_data_loader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
 
 if args.ddp:
     print("Creating Dataloader")
@@ -93,13 +93,20 @@ elif args.model == 'electra':
     model_config = ElectraConfig.from_pretrained(pretrained_model_name_or_path="monologg/koelectra-base-v3-discriminator",
                                                  num_labels=2)
     model = ElectraForSequenceClassification.from_pretrained("monologg/koelectra-base-v3-discriminator", config=model_config)
-
+elif args.model == 'electra_tunib':
+    model_config = ElectraConfig.from_pretrained(pretrained_model_name_or_path="tunib/electra-ko-base",
+                                                 num_labels=2)
+    model = ElectraForSequenceClassification.from_pretrained("tunib/electra-ko-base", config=model_config)
+elif args.model == 'electra_kor':
+    model_config = ElectraConfig.from_pretrained(pretrained_model_name_or_path="kykim/electra-kor-base",
+                                                 num_labels=2)
+    model = ElectraForSequenceClassification.from_pretrained("kykim/electra-kor-base", config=model_config)
 
 print("Creating Trainer")
 trainer = Trainer(task='cola', model=model, train_dataloader=train_data_loader, test_dataloader=test_data_loader,
                       lr=args.lr, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay,
                       with_cuda=args.with_cuda, cuda_devices=args.cuda_devices, log_freq=args.log_freq,
-                  distributed = args.ddp, local_rank = args.local_rank, accum_iter= args.accumulate)
+                  distributed = args.ddp, local_rank = args.local_rank, accum_iter= args.accumulate, seed= args.seed, model_name=args.model)
 
 print("Training Start")
 for epoch in range(args.epochs):
