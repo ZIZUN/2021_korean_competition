@@ -1,10 +1,10 @@
 # 2021_korean_competition
-2021 국립국어원 인공 지능 언어 능력 평가
+2021 국립국어원 인공 지능 언어 능력 평가 (화성갈끄니까 팀 제출자료)
 
-## Docker 이미지 다운 and 모델 평가 방법
+## Docker Image Download & Model evaluation
 
-1. Docker 이미지 다운로드(cuda11.0 지원)
-2. Docker 이미지 load & container 실행
+1. Docker Image Download(cuda11.0 지원)
+2. Docker Image load & container 실행
 ```console
 docker run --gpus 1 --rm -it rocket
 ```
@@ -20,13 +20,14 @@ python get_result.py --batch_size 100 --num_worker 5 --boolq_data_path 'data/boo
 
 
 ## 각 Task별 Train 코드
-1. 환경설정
+1. Environment Setting
+
 ```console
 
 pip install -r requirements.txt
 
 ```
-2. 학습코드 실행
+2. Train 코드 실행
 ```console
 bash boolq.sh roberta [bsz]
 bash cola.sh roberta [bsz]
