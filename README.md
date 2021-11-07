@@ -16,9 +16,8 @@ python get_result.py --batch_size 100 --num_worker 5 --boolq_data_path 'data/boo
 
 ```
 5. 평가가 완료되면 './result/' 경로에 저장된 결과파일(tsv)이 저장된다.
-```console
-docker run --gpus 1 --rm -it rocket
-```
+
+
 
 ## 각 Task별 Train 코드
 1. 환경설정
