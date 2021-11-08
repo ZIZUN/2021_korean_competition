@@ -27,5 +27,3 @@ COPY . /app
 WORKDIR /app
 RUN pip install --upgrade pip
 RUN conda create --name rocket python=3.7
-RUN source activate rocket
-RUN pip install -r requirements.txt
