@@ -3,7 +3,7 @@
 
 ## Docker 이미지 다운 and 모델 평가 방법
 
-1. Docker Image Download(cuda11.0 지원) [[Download Link]](http://naver.com)
+1. Docker Image Download(cuda11.0 지원) [[Download Link]](https://drive.google.com/file/d/1HrpzCrXhDb9PmetzESUBxXSzkqz_1kOd/view?usp=sharing)
 2. Docker Image load & container 실행
 ```console
 docker load -i rocket.tar
