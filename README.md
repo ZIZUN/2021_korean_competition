@@ -5,7 +5,7 @@
 
 1. Docker Image build & container 실행
 ```console
-gin clone https://github.com/ZIZUN/2021_korean_competition.git
+git lfs clone https://github.com/ZIZUN/2021_korean_competition.git
 cd 2021_korean_competition
 docker build -t rocket
 docker run --gpus 1 --rm -it rocket
