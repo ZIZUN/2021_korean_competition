@@ -3,27 +3,28 @@
 
 ## Docker 이미지 다운 and 모델 평가 방법
 
-1. Docker Image Download(cuda11.0 지원) [[Download Link]](https://drive.google.com/file/d/1HrpzCrXhDb9PmetzESUBxXSzkqz_1kOd/view?usp=sharing)
-2. Docker Image load & container 실행
+1. Docker Image build & container 실행
 ```console
-docker load -i rocket.tar
+gin clone https://github.com/ZIZUN/2021_korean_competition.git
+cd 2021_korean_competition
+docker build -t rocket
 docker run --gpus 1 --rm -it rocket
 ```
-3. Conda Environment Setting
+2. Conda Environment Setting
 ```console
 conda activate rocket
 pip install -r requirements.txt
 ```
-4. 평가용 데이터 삽입(./data/boolq/ , ... 각 4가지 Task별 폴더에 삽입)
+3. 평가용 데이터 삽입(./data/boolq/ , ... 각 4가지 Task별 폴더에 삽입)
 
 <참고> boolq - 판정의문문, cola - 문법성판단, copa - 인과관계추론, wic - 동형이의어
 
-5. evaluation 코드(get_result.py)를 arguments(데이터 경로, batchsize 등)와 함께 실행 (40분 정도 소요)
+4. evaluation 코드(get_result.py)를 arguments(데이터 경로, batchsize 등)와 함께 실행 (40분 정도 소요)
 ```console
 python get_result.py --batch_size 100 --num_worker 5 --boolq_data_path 'data/boolq/_.tsv' --cola_data_path 'data/cola/_.tsv' --copa_data_path 'data/copa/_.tsv' --wic_data_path 'data/wic/_.tsv' --result_file_name 'result.json' --device 'cuda:0'
 ```
 
-6. 평가가 완료되면 './result/' 경로에 결과파일(tsv)이 저장된다.
+5. 평가가 완료되면 './result/' 경로에 결과파일(tsv)이 저장된다.
 
 ## 각 Task별 Train 코드
 
