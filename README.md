@@ -17,7 +17,7 @@ bash copa.sh roberta [bsz]
 bash wic.sh roberta [bsz]
 ```
 
-## Docker build and 모델 평가 방법(CUDA11지원, 현재 모델 파라미터, 데이터 제공X)
+## Docker build and 모델 앙상블 평가 방법(CUDA11지원, 현재 모델 파라미터, 데이터 제공X)
 
 1. Docker Image build & container 실행
 ```console
