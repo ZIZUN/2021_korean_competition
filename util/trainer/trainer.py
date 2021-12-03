@@ -118,7 +118,7 @@ class Trainer:
 
             data = {key: value.to(self.device) for key, value in data.items()}
 
-            self.optim.zero_grad()
+
 
             output = self.model.forward(**data)
 
@@ -140,9 +140,11 @@ class Trainer:
             if accum_iter == 1:  # not gradient accumulation
                 self.optim.step()
                 self.scheduler.step()
+                self.optim.zero_grad()
             elif ((i + 1) % accum_iter == 0) or (i + 1 == len(data_iter)):  # gradient accumulation
                 self.optim.step()
                 self.scheduler.step()
+                self.optim.zero_grad()
 
 
             if self.distributed == False:
