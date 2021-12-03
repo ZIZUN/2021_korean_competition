@@ -1,16 +1,6 @@
 # 2021_korean_competition
 2021 국립국어원 인공 지능 언어 능력 평가 (화성갈끄니까 팀)
 
-## Solution
-
- ![1](./image/1.PNG)
- ![1](./image/2.PNG)
- ![1](./image/3.PNG)
- ![1](./image/4.PNG)
- ![1](./image/5.PNG)
- ![1](./image/6.PNG)
- ![1](./image/7.PNG)
-
 ## 각 Task별 Train 코드
 
 1. Environment Setting
@@ -52,3 +42,13 @@ python get_result.py --batch_size 100 --num_worker 5 --boolq_data_path 'data/boo
 
 5. 평가가 완료되면 './result/' 경로에 결과파일(tsv)이 저장된다.
 
+
+## Solution
+
+ ![1](./image/1.PNG)
+ ![1](./image/2.PNG)
+ ![1](./image/3.PNG)
+ ![1](./image/4.PNG)
+ ![1](./image/5.PNG)
+ ![1](./image/6.PNG)
+ ![1](./image/7.PNG)
